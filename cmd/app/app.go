@@ -19,6 +19,7 @@ const (
 )
 
 var WS *websocket.Conn
+var allRecords []*airtable.Record
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -106,8 +107,6 @@ func (app App) Run() error {
 	return r.Run("localhost:3000")
 }
 
-var allRecords []*airtable.Record
-
 func getCancelledRecords() []*airtable.Record {
 	var cancelledRecords []*airtable.Record
 
@@ -166,7 +165,7 @@ func (app App) setupRouter() *gin.Engine {
 
 func (app App) Init() error {
 	table := app.Config.AirtableClient.GetTable(app.Config.Base.ID, TableName)
-	//var allRecords []*airtable.Record = nil
+	allRecords = nil
 
 	offset := ""
 	for true {
