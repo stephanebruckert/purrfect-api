@@ -1,34 +1,23 @@
 package config
 
 import (
-	"github.com/mehanizm/airtable"
+	"github.com/caarlos0/env"
 	"github.com/pkg/errors"
-	"os"
 )
 
-const BaseName = "Purrfect Creations (Copy)"
-
 type Config struct {
-	AirtableClient *airtable.Client
-	Base           *airtable.Base
-	ApiToken       string
+	ApiToken  string `env:"AIRTABLE_API_TOKEN" envDefault:""`
+	SmeeURL   string `env:"SMEE_URL" envDefault:"https://smee.io/2mxhU4Pb2YrNvF8E"`
+	BaseName  string `env:"BASE_NAME" envDefault:"Purrfect Creations"`
+	TableName string `env:"TABLE_NAME" envDefault:"Orders"`
 }
 
 func NewConfig() (*Config, error) {
-	cfg := &Config{}
-	apiToken := os.Getenv("AIRTABLE_API_TOKEN")
-	client := airtable.NewClient(apiToken)
-	cfg.AirtableClient = client
-	bases, err := client.GetBases().WithOffset("").Do()
-	if err != nil {
-		return cfg, errors.Wrap(err, "Could not get bases")
+	var config Config
+
+	if err := env.Parse(&config); err != nil {
+		return nil, errors.Wrap(err, "error initializing config")
 	}
 
-	for _, base := range bases.Bases {
-		if base.Name == BaseName {
-			cfg.Base = base
-			break
-		}
-	}
-	return cfg, nil
+	return &config, nil
 }

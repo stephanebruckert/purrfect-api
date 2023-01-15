@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"github.com/stephanebruckert/purrfect-api/internal/config"
 	"io"
 	"net/http"
-	"os"
 )
 
 type Webhook struct {
@@ -16,39 +16,6 @@ type Webhook struct {
 
 type ListWebhooksResponse struct {
 	Webhooks []Webhook `json:"webhooks"`
-}
-
-func ListWebhooks(cfg *config.Config) ([]Webhook, error) {
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("https://api.airtable.com/v0/bases/%s/webhooks", cfg.Base.ID), nil)
-	if err != nil {
-		fmt.Printf("client: could not create request: %s\n", err)
-		return nil, err
-	}
-
-	req.Header = http.Header{
-		"Authorization": {fmt.Sprintf("Bearer %s", cfg.ApiToken)},
-	}
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		fmt.Printf("client: error making http request: %s\n", err)
-		return nil, err
-	}
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Printf("%+v\n", string(body))
-
-	var webhooks ListWebhooksResponse
-	err = json.Unmarshal(body, &webhooks)
-	if err != nil {
-		return nil, err
-	}
-
-	return webhooks.Webhooks, nil
 }
 
 type CreateWebhookRequest struct {
@@ -62,26 +29,51 @@ type CreateWebhookRequest struct {
 	} `json:"specification"`
 }
 
-func CreateWebhook(cfg *config.Config) ([]string, error) {
+func ListWebhooks(cfg *config.Config, baseId string) ([]Webhook, error) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("https://api.airtable.com/v0/bases/%s/webhooks", baseId), nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create request")
+	}
+
+	req.Header = http.Header{
+		"Authorization": {fmt.Sprintf("Bearer %s", cfg.ApiToken)},
+	}
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "error making http request")
+	}
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var webhooks ListWebhooksResponse
+	err = json.Unmarshal(body, &webhooks)
+	if err != nil {
+		return nil, err
+	}
+
+	return webhooks.Webhooks, nil
+}
+
+func CreateWebhook(cfg *config.Config, baseId string) ([]string, error) {
 	cwr := CreateWebhookRequest{}
-	smeeUrl := os.Getenv("SMEE_URL")
-	cwr.NotificationUrl = smeeUrl
+	cwr.NotificationUrl = cfg.SmeeURL
 	cwr.Specification.Options.Filters.DataTypes = []string{"tableData"}
-	//cwr.Specification.Options.Filters.RecordChangeScope = "tbltp8DGLhqbUmjK1"
 
 	b, err := json.Marshal(cwr)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
 	req, err := http.NewRequest(
 		http.MethodPost,
-		fmt.Sprintf("https://api.airtable.com/v0/bases/%s/webhooks", cfg.Base.ID),
+		fmt.Sprintf("https://api.airtable.com/v0/bases/%s/webhooks", baseId),
 		bytes.NewBuffer(b))
 	if err != nil {
-		fmt.Printf("client: could not create request: %s\n", err)
-		return nil, err
+		return nil, errors.Wrap(err, "could not create request")
 	}
 
 	req.Header = http.Header{
@@ -91,8 +83,7 @@ func CreateWebhook(cfg *config.Config) ([]string, error) {
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		fmt.Printf("client: error making http request: %s\n", err)
-		return nil, err
+		return nil, errors.Wrap(err, "error making http request")
 	}
 
 	body, err := io.ReadAll(res.Body)
@@ -100,20 +91,15 @@ func CreateWebhook(cfg *config.Config) ([]string, error) {
 		return nil, err
 	}
 
-	fmt.Printf("%+v\n", string(body))
 	var webhooks ListWebhooksResponse
 	err = json.Unmarshal(body, &webhooks)
-	if err != nil {
-		return nil, err
-	}
-	return nil, nil
+	return nil, err
 }
 
-func DeleteWebhook(webhookId string, cfg *config.Config) error {
-	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("https://api.airtable.com/v0/bases/%s/webhooks/%s", cfg.Base.ID, webhookId), nil)
+func DeleteWebhook(cfg *config.Config, webhookId string, baseId string) error {
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("https://api.airtable.com/v0/bases/%s/webhooks/%s", baseId, webhookId), nil)
 	if err != nil {
-		fmt.Printf("client: could not create request: %s\n", err)
-		return err
+		return errors.Wrap(err, "could not create request")
 	}
 
 	req.Header = http.Header{
@@ -122,15 +108,9 @@ func DeleteWebhook(webhookId string, cfg *config.Config) error {
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		fmt.Printf("client: error making http request: %s\n", err)
-		return err
+		return errors.Wrap(err, "error making http request")
 	}
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("%+v\n", string(body))
-	return nil
+	_, err = io.ReadAll(res.Body)
+	return err
 }

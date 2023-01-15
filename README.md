@@ -1,4 +1,4 @@
-# purrfect
+# purrfect-api
 
 ## Local setup
 
@@ -23,23 +23,33 @@ and permission `All current and future bases in all current and future workspace
 
 Use the token in the step below.
 
-### Run app
+### Run tests
 
-    AIRTABLE_API_TOKEN=redacted SMEE_URL=https://smee.io/2mxhU4Pb2YrNvF8E go run main.go
+    go test -v ./...
+
+### Run manually
+
+    AIRTABLE_API_TOKEN=redacted SMEE_URL=redacted go run main.go
+
+### Run via docker
+
+    docker build -t purrfect-api .
+    docker run -e AIRTABLE_API_TOKEN=redacted -e SMEE_URL=redacted -p 3000:3000 purrfect-api
 
 ## Features
 
 ### API endpoints
 
- - Totals: http://localhost:3000/totals
+ - Totals: http://localhost:3000/stats
+ - Health: http://localhost:3000/health
+ - Webhook: http://localhost:3000/
+ - Websocket: http://localhost:3000/ws
 
 ### Webhook
 
-Prevents unneeded http requests:
-- regularly polling
-- having to request refetch.
-
-Allows getting the data ASAP.
+Webhooks allow getting the data ASAP and prevent:
+- regularly polling,
+- having to request the same data.
 
 ### Websocket
 
@@ -49,10 +59,6 @@ refresh the page or have a button to fetch data again.
 ### Possible improvements
 
 - Only fetch updated/added data from webhook event instead of all records every time
-- Don't refresh every keystroke
-- Think app errors when UI not running
+- Don't refresh on every Airtable keystroke
+- Fix api error when no active webui
 
-## Docker 
-
-    docker build -t purrfect-api .
-    docker run -e AIRTABLE_API_TOKEN=redacted -e SMEE_URL=redacted -p 3000:3000 purrfect-api

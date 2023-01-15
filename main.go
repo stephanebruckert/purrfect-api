@@ -1,20 +1,20 @@
 package main
 
 import (
-	"fmt"
 	"github.com/stephanebruckert/purrfect-api/cmd/app"
+	"log"
 	"os"
 )
 
 func main() {
 	api, err := app.New()
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		os.Exit(1)
 	}
 
 	if err := api.Run(); err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		os.Exit(1)
 	}
 }
