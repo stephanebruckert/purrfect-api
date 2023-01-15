@@ -26,37 +26,12 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-func reader(conn *websocket.Conn) {
-	for {
-		// read in a message
-		messageType, p, err := conn.ReadMessage()
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		// print out that message for clarity
-		fmt.Println(string(p))
-		if err := conn.WriteMessage(messageType, p); err != nil {
-			log.Println(err)
-			return
-		}
-	}
-}
-
 func WsEndpoint(w http.ResponseWriter, r *http.Request) {
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
-	// upgrade this connection to a WebSocket
-	// connection
+
 	WS, _ = upgrader.Upgrade(w, r, nil)
-	// if err != nil {
-	//  log.Println(err)
-	// }
+
 	log.Println("Client Connected")
-	err := WS.WriteMessage(websocket.TextMessage, []byte("{}"))
-	if err != nil {
-		log.Println(err)
-	}
-	reader(WS)
 }
 
 type App struct {
@@ -165,7 +140,7 @@ func (app App) setupRouter() *gin.Engine {
 
 func (app App) Init() error {
 	table := app.Config.AirtableClient.GetTable(app.Config.Base.ID, TableName)
-	allRecords = nil
+	var allRecordsTmp []*airtable.Record
 
 	offset := ""
 	for true {
@@ -178,13 +153,15 @@ func (app App) Init() error {
 		}
 
 		fmt.Printf("Found %+v at offset %s\n", len(records.Records), records.Offset)
-		allRecords = append(allRecords, records.Records...)
+		allRecordsTmp = append(allRecordsTmp, records.Records...)
 
 		if records.Offset == "" {
 			break
 		}
 		offset = records.Offset
 	}
+
+	allRecords = allRecordsTmp
 
 	fmt.Printf("Found %+v\n", len(allRecords))
 
