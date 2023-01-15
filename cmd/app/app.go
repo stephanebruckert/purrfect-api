@@ -9,7 +9,9 @@ import (
 	"github.com/stephanebruckert/purrfect-api/internal/config"
 	"github.com/stephanebruckert/purrfect-api/internal/webhooks"
 	"log"
+	"math"
 	"net/http"
+	"time"
 
 	"os"
 )
@@ -82,16 +84,56 @@ func (app App) Run() error {
 	return r.Run("localhost:3000")
 }
 
-func getCancelledRecords() []*airtable.Record {
-	var cancelledRecords []*airtable.Record
+type Stats struct {
+	TotalCancelled  int
+	TotalShipped    int
+	TotalPlaced     int
+	TotalInProgress int
+	TotalLastMonth  int
+	Revenue         float64
+}
+
+func getStats() (Stats, error) {
+	stats := Stats{}
+
+	now := time.Now()
+	oneMonthAgo := now.AddDate(0, -1, 0)
 
 	for _, record := range allRecords {
-		if record.Fields["order_status"] == "cancelled" {
-			cancelledRecords = append(cancelledRecords, record)
+		// Count by status
+		switch record.Fields["order_status"] {
+		case "cancelled":
+			stats.TotalCancelled++
+		case "shipped":
+			stats.TotalShipped++
+		case "placed":
+			stats.TotalPlaced++
+		case "in_progress":
+			stats.TotalInProgress++
+		default:
+			fmt.Println("Unknown order status")
+		}
+
+		// Count by date
+		input := record.Fields["order_placed"].(string)
+		orderTime, err := time.Parse("2006-01-02", input)
+		if err != nil {
+			return stats, err
+		}
+		if orderTime.After(oneMonthAgo) {
+			stats.TotalLastMonth++
+		}
+
+		// Sum revenue
+		price := record.Fields["price"].(float64)
+		if record.Fields["order_status"] != "cancelled" {
+			stats.Revenue += price
 		}
 	}
 
-	return cancelledRecords
+	stats.Revenue = math.Round(stats.Revenue*100) / 100 // Round to closest .00
+
+	return stats, nil
 }
 
 func cors(c *gin.Context) {
@@ -128,11 +170,23 @@ func (app App) setupRouter() *gin.Engine {
 		})
 	})
 
-	r.GET("/totals", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"total_orders":    len(allRecords),
-			"total_cancelled": len(getCancelledRecords()),
-		})
+	r.GET("/stats", func(c *gin.Context) {
+		stats, err := getStats()
+		if err != nil {
+			c.JSON(500, gin.H{
+				"error": err.Error(),
+			})
+		} else {
+			c.JSON(200, gin.H{
+				"total_orders":      len(allRecords),
+				"total_cancelled":   stats.TotalCancelled,
+				"total_in_progress": stats.TotalInProgress,
+				"total_placed":      stats.TotalPlaced,
+				"total_shipped":     stats.TotalShipped,
+				"total_last_month":  stats.TotalLastMonth,
+				"revenue":           stats.Revenue,
+			})
+		}
 	})
 
 	return r
