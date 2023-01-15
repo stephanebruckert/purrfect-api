@@ -8,8 +8,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stephanebruckert/purrfect-api/internal/config"
 	"github.com/stephanebruckert/purrfect-api/internal/webhooks"
-	ws "github.com/stephanebruckert/purrfect-api/internal/websocket"
 	"log"
+	"net/http"
 
 	"os"
 )
@@ -18,9 +18,48 @@ const (
 	TableName = "Orders"
 )
 
+var WS *websocket.Conn
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
+
+func reader(conn *websocket.Conn) {
+	for {
+		// read in a message
+		messageType, p, err := conn.ReadMessage()
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		// print out that message for clarity
+		fmt.Println(string(p))
+		if err := conn.WriteMessage(messageType, p); err != nil {
+			log.Println(err)
+			return
+		}
+	}
+}
+
+func WsEndpoint(w http.ResponseWriter, r *http.Request) {
+	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
+	// upgrade this connection to a WebSocket
+	// connection
+	WS, _ = upgrader.Upgrade(w, r, nil)
+	// if err != nil {
+	//  log.Println(err)
+	// }
+	log.Println("Client Connected")
+	err := WS.WriteMessage(websocket.TextMessage, []byte("{}"))
+	if err != nil {
+		log.Println(err)
+	}
+	reader(WS)
+}
+
 type App struct {
 	Config *config.Config
-	WS     *websocket.Conn
 }
 
 func New() (*App, error) {
@@ -95,7 +134,7 @@ func (app App) setupRouter() *gin.Engine {
 	r.Use(cors)
 
 	r.GET("/ws", func(c *gin.Context) {
-		ws.WsEndpoint(c.Writer, c.Request, app.WS)
+		WsEndpoint(c.Writer, c.Request)
 	})
 
 	r.POST("/", func(c *gin.Context) {
@@ -104,7 +143,7 @@ func (app App) setupRouter() *gin.Engine {
 			fmt.Println(err)
 		}
 		text := []byte("{}")
-		if err := ws.WriteMessage(text, app.WS); err != nil {
+		if err := WS.WriteMessage(websocket.TextMessage, text); err != nil {
 			log.Println(err)
 		}
 	})
@@ -127,6 +166,7 @@ func (app App) setupRouter() *gin.Engine {
 
 func (app App) Init() error {
 	table := app.Config.AirtableClient.GetTable(app.Config.Base.ID, TableName)
+	//var allRecords []*airtable.Record = nil
 
 	offset := ""
 	for true {
