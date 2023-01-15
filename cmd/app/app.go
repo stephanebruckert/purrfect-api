@@ -81,7 +81,7 @@ func (app App) Run() error {
 	}
 
 	r := app.setupRouter()
-	return r.Run("localhost:3000")
+	return r.Run("0.0.0.0:3000")
 }
 
 type Stats struct {

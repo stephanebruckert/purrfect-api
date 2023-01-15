@@ -49,3 +49,10 @@ refresh the page or have a button to fetch data again.
 ### Possible improvements
 
 - Only fetch updated/added data from webhook event instead of all records every time
+- Don't refresh every keystroke
+- Think app errors when UI not running
+
+## Docker 
+
+    docker build -t purrfect-api .
+    docker run -e AIRTABLE_API_TOKEN=redacted -e SMEE_URL=redacted -p 3000:3000 purrfect-api
