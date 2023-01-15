@@ -91,6 +91,7 @@ type Stats struct {
 	TotalInProgress int
 	TotalLastMonth  int
 	Revenue         float64
+	PerProduct      map[string]int
 }
 
 func getStats() (Stats, error) {
@@ -99,6 +100,7 @@ func getStats() (Stats, error) {
 	now := time.Now()
 	oneMonthAgo := now.AddDate(0, -1, 0)
 
+	stats.PerProduct = map[string]int{}
 	for _, record := range allRecords {
 		// Count by status
 		switch record.Fields["order_status"] {
@@ -128,6 +130,15 @@ func getStats() (Stats, error) {
 		price := record.Fields["price"].(float64)
 		if record.Fields["order_status"] != "cancelled" {
 			stats.Revenue += price
+		}
+
+		// Filter by product
+		productName := record.Fields["product_name"].(string)
+		_, ok := stats.PerProduct[productName]
+		if ok {
+			stats.PerProduct[productName]++
+		} else {
+			stats.PerProduct[productName] = 1
 		}
 	}
 
@@ -185,6 +196,7 @@ func (app App) setupRouter() *gin.Engine {
 				"total_shipped":     stats.TotalShipped,
 				"total_last_month":  stats.TotalLastMonth,
 				"revenue":           stats.Revenue,
+				"totals_products":   stats.PerProduct,
 			})
 		}
 	})
