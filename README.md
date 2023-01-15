@@ -33,7 +33,7 @@ Use the token in the step below.
 
  - Totals: http://localhost:3000/totals
 
-### Webhook (TODO)
+### Webhook
 
 Prevents unneeded http requests:
 - regularly polling

@@ -1,9 +1,10 @@
-module github.com/stephanebruckert/purrfect
+module github.com/stephanebruckert/purrfect-api
 
 go 1.19
 
 require (
 	github.com/gin-gonic/gin v1.8.2
+	github.com/gorilla/websocket v1.5.0
 	github.com/mehanizm/airtable v0.2.8
 	github.com/pkg/errors v0.9.1
 )
